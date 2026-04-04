@@ -1,0 +1,7 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+  </Configurations>
+  <Project Path="Apple/Apple.vcxproj" />
+  <Project Path="Sandbox/Sandbox.vcxproj" />
+</Solution>
