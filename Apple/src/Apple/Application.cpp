@@ -13,7 +13,7 @@ namespace Apple
 	{
 		while (true)
 		{
-			printf("Running...\n");
+			
 		}
 	}
 }

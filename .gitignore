@@ -2,3 +2,5 @@
 x64/
 Apple/*.usr
 Sandbox/*.usr
+Sandbox/x64/
+Apple/x64/

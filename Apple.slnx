@@ -2,6 +2,6 @@
   <Configurations>
     <Platform Name="x64" />
   </Configurations>
-  <Project Path="Apple/Apple.vcxproj" />
-  <Project Path="Sandbox/Sandbox.vcxproj" />
+  <Project Path="Apple/Apple.vcxproj" Id="4826726d-0d84-4fa8-aab8-7994baa0eff7" />
+  <Project Path="Sandbox/Sandbox.vcxproj" Id="f7f8ecd4-d5b8-44da-9b74-59f6dd117579" />
 </Solution>
