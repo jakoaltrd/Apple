@@ -1,6 +1,5 @@
 .vs/
-x64/
+bin/
+bin-int/
 Apple/*.usr
 Sandbox/*.usr
-Sandbox/x64/
-Apple/x64/
