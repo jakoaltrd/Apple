@@ -1,11 +1,20 @@
 #pragma once
 
 #ifdef APPLE_PLATFORM_WINDOWS
-	#ifdef APPLE_BUILD_DLL
-		#define APPLE_API __declspec(dllexport)
-	#else
-		#define APPLE_API __declspec(dllimport)
-    #endif
+	// For static library, APPLE_API is empty (no dllexport/dllimport needed)
+	#define APPLE_API
 #else
-#error Apple only supports Windows!
+	#error Apple only supports Windows!
 #endif
+
+#ifdef APPLE_DEBUG
+	#define APPLE_ENABLE_ASSERTS
+#endif
+
+#ifdef APPLE_ENABLE_ASSERTS
+	#define APPLE_ASSERT(x, ...) { if(!(x)) { APPLE_CORE_ERROR("Assertion Failed: {0}", __VA_ARGS__); __debugbreak(); } }
+#else
+	#define APPLE_ASSERT(x, ...)
+#endif
+
+#define BIT(x) (1 << x)

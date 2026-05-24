@@ -19,13 +19,13 @@
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
-    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <CharacterSet>Unicode</CharacterSet>
     <PlatformToolset>v145</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
-    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <CharacterSet>Unicode</CharacterSet>
     <PlatformToolset>v145</PlatformToolset>
@@ -41,36 +41,32 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <LinkIncremental>true</LinkIncremental>
     <OutDir>$(ProjectDir)..\bin\Debug-windows-x86_64\Apple\</OutDir>
     <IntDir>$(ProjectDir)..\bin-int\Debug-windows-x86_64\Apple\</IntDir>
     <TargetName>Apple</TargetName>
-    <TargetExt>.dll</TargetExt>
+    <TargetExt>.lib</TargetExt>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <LinkIncremental>false</LinkIncremental>
     <OutDir>$(ProjectDir)..\bin\Release-windows-x86_64\Apple\</OutDir>
     <IntDir>$(ProjectDir)..\bin-int\Release-windows-x86_64\Apple\</IntDir>
     <TargetName>Apple</TargetName>
-    <TargetExt>.dll</TargetExt>
+    <TargetExt>.lib</TargetExt>
+    <IncludePath>F:\downloads\Apple-master\Apple-master\Apple\vendor\imgui\backends;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
-      <PreprocessorDefinitions>APPLE_PLATFORM_WINDOWS;APPLE_BUILD_DLL;_WINDLL;_CRT_SECURE_NO_WARNINGS;APPLE_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>src;vendor\spdlog\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>APPLE_PLATFORM_WINDOWS;_CRT_SECURE_NO_WARNINGS;APPLE_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>src;vendor\spdlog\include;vendor\glfw\include;vendor\glfw\deps;vendor\imgui;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
       <Optimization>Disabled</Optimization>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <ExternalWarningLevel>Level3</ExternalWarningLevel>
-      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <ImportLibrary>..\bin\Debug-windows-x86_64\Apple\Apple.lib</ImportLibrary>
-      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
     </Link>
     <ProjectReference>
     </ProjectReference>
@@ -79,8 +75,8 @@
     <ClCompile>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
-      <PreprocessorDefinitions>APPLE_PLATFORM_WINDOWS;APPLE_BUILD_DLL;_WINDLL;_CRT_SECURE_NO_WARNINGS;APPLE_RELEASE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>src;vendor\spdlog\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>APPLE_PLATFORM_WINDOWS;_CRT_SECURE_NO_WARNINGS;APPLE_RELEASE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>src;vendor\spdlog\include;vendor\glfw\include;vendor\glfw\deps;vendor\imgui;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <Optimization>Full</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
@@ -93,7 +89,6 @@
       <SubSystem>Windows</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <ImportLibrary>..\bin\Release-windows-x86_64\Apple\Apple.lib</ImportLibrary>
     </Link>
     <ProjectReference>
     </ProjectReference>
@@ -104,6 +99,8 @@
     <ClInclude Include="src\Apple\Core.h" />
     <ClInclude Include="src\Apple\EntryPoint.h" />
     <ClInclude Include="src\Apple\Log.h" />
+    <ClInclude Include="vendor\glad\glad.h" />
+    <ClInclude Include="vendor\glad\khrplatform.h" />
     <ClInclude Include="vendor\spdlog\include\spdlog\async.h" />
     <ClInclude Include="vendor\spdlog\include\spdlog\async_logger-inl.h" />
     <ClInclude Include="vendor\spdlog\include\spdlog\async_logger.h" />
@@ -197,6 +194,7 @@
     <ClInclude Include="vendor\spdlog\include\spdlog\sinks\stdout_sinks-inl.h" />
     <ClInclude Include="vendor\spdlog\include\spdlog\sinks\stdout_sinks.h" />
     <ClInclude Include="vendor\spdlog\include\spdlog\sinks\syslog_sink.h" />
+    <ClInclude Include="vendor\spdlog\include\spdlog\sinks\systemd_namespace_sink.h" />
     <ClInclude Include="vendor\spdlog\include\spdlog\sinks\systemd_sink.h" />
     <ClInclude Include="vendor\spdlog\include\spdlog\sinks\tcp_sink.h" />
     <ClInclude Include="vendor\spdlog\include\spdlog\sinks\udp_sink.h" />
@@ -212,6 +210,15 @@
   <ItemGroup>
     <ClCompile Include="src\Apple\Application.cpp" />
     <ClCompile Include="src\Apple\Log.cpp" />
+    <ClCompile Include="vendor\glad\glad.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="vendor\glfw\GLFW.vcxproj">
+      <Project>{154B857C-0182-860D-AA6E-6C109684020F}</Project>
+    </ProjectReference>
+    <ProjectReference Include="vendor\imgui\ImGui.vcxproj">
+      <Project>{C0FF640D-2C14-8DBE-F595-301E616989EF}</Project>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

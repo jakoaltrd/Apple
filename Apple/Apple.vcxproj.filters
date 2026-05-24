@@ -330,6 +330,9 @@
     <ClInclude Include="vendor\spdlog\include\spdlog\sinks\syslog_sink.h">
       <Filter>vendor\spdlog\include\spdlog\sinks</Filter>
     </ClInclude>
+    <ClInclude Include="vendor\spdlog\include\spdlog\sinks\systemd_namespace_sink.h">
+      <Filter>vendor\spdlog\include\spdlog\sinks</Filter>
+    </ClInclude>
     <ClInclude Include="vendor\spdlog\include\spdlog\sinks\systemd_sink.h">
       <Filter>vendor\spdlog\include\spdlog\sinks</Filter>
     </ClInclude>
@@ -363,6 +366,8 @@
     <ClInclude Include="vendor\spdlog\include\spdlog\version.h">
       <Filter>vendor\spdlog\include\spdlog</Filter>
     </ClInclude>
+    <ClInclude Include="vendor\glad\glad.h" />
+    <ClInclude Include="vendor\glad\khrplatform.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Apple\Application.cpp">
@@ -371,5 +376,6 @@
     <ClCompile Include="src\Apple\Log.cpp">
       <Filter>src\Apple</Filter>
     </ClCompile>
+    <ClCompile Include="vendor\glad\glad.c" />
   </ItemGroup>
 </Project>

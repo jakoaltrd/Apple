@@ -21,3 +21,8 @@ namespace Apple
 #define APPLE_CORE_ERROR(...) ::Apple::Log::GetCoreLogger()->error(__VA_ARGS__)
 #define APPLE_CORE_WARN(...) ::Apple::Log::GetCoreLogger()->warn(__VA_ARGS__)
 #define APPLE_CORE_INFO(...) ::Apple::Log::GetCoreLogger()->info(__VA_ARGS__)
+
+#define APPLE_CLIENT_TRACE(...) ::Apple::Log::GetClientLogger()->trace(__VA_ARGS__)
+#define APPLE_CLIENT_ERROR(...) ::Apple::Log::GetClientLogger()->error(__VA_ARGS__)
+#define APPLE_CLIENT_WARN(...) ::Apple::Log::GetClientLogger()->warn(__VA_ARGS__)
+#define APPLE_CLIENT_INFO(...) ::Apple::Log::GetClientLogger()->info(__VA_ARGS__)
