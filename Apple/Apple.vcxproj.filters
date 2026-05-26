@@ -51,6 +51,9 @@
     <ClInclude Include="src\Apple\Log.h">
       <Filter>src\Apple</Filter>
     </ClInclude>
+    <ClInclude Include="src\Apple\Model.h">
+      <Filter>src\Apple</Filter>
+    </ClInclude>
     <ClInclude Include="vendor\spdlog\include\spdlog\async.h">
       <Filter>vendor\spdlog\include\spdlog</Filter>
     </ClInclude>
@@ -368,6 +371,11 @@
     </ClInclude>
     <ClInclude Include="vendor\glad\glad.h" />
     <ClInclude Include="vendor\glad\khrplatform.h" />
+    <ClInclude Include="vendor\fx-gltf\fx-gltf\include\fx\gltf.h" />
+    <ClInclude Include="vendor\fx-gltf\fx-gltf\include\fx\json.hpp" />
+    <ClInclude Include="vendor\glm\glm\glm.hpp" />
+    <ClInclude Include="vendor\glm\glm\gtc\quaternion.hpp" />
+    <ClInclude Include="src\Apple\stb_image.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Apple\Application.cpp">
@@ -376,6 +384,11 @@
     <ClCompile Include="src\Apple\Log.cpp">
       <Filter>src\Apple</Filter>
     </ClCompile>
+    <ClCompile Include="src\Apple\Model.cpp">
+      <Filter>src\Apple</Filter>
+    </ClCompile>
+    <ClCompile Include="vendor\bullet\examples\ThirdPartyLibs\stb_image\stb_image.cpp" />
     <ClCompile Include="vendor\glad\glad.c" />
+    <ClCompile Include="src\Apple\stb_image.cpp" />
   </ItemGroup>
 </Project>

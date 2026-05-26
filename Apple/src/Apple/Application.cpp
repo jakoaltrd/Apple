@@ -59,6 +59,13 @@ namespace Apple
 
 		glClearColor(0.2f, 0.3f, 0.8f, 1.0f);
 
+		// Set up mouse callbacks
+		glfwSetWindowUserPointer(m_Window, this);
+		glfwSetMouseButtonCallback(m_Window, MouseButtonCallback);
+		glfwSetCursorPosCallback(m_Window, CursorPosCallback);
+		glfwSetScrollCallback(m_Window, ScrollCallback);
+		glfwSetFramebufferSizeCallback(m_Window, FramebufferSizeCallback);
+
 		m_Running = true;
 		return true;
 	}
@@ -112,6 +119,11 @@ namespace Apple
 		APPLE_CORE_INFO("ImGui shutdown completed");
 	}
 
+	void Application::OnRender()
+	{
+		// Default implementation - override to render 3D content
+	}
+
 	void Application::OnImGuiRender()
 	{
 		// Default implementation - can be overridden by derived classes
@@ -138,8 +150,10 @@ namespace Apple
 	void Application::Update()
 	{
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		glEnable(GL_DEPTH_TEST);
 		glfwPollEvents();
 
+		OnRender();
 		RenderImGui();
 
 		glfwSwapBuffers(m_Window);
@@ -151,5 +165,78 @@ namespace Apple
 		{
 			Update();
 		}
+	}
+
+	void Application::OnMouseButton(const MouseButtonArgs& args)
+	{
+		// Default implementation - override for custom behavior
+	}
+
+	void Application::OnMouseMove(const MouseMoveArgs& args)
+	{
+		// Default implementation - override for custom behavior
+	}
+
+	void Application::OnScroll(const ScrollArgs& args)
+	{
+		// Default implementation - override for custom behavior
+	}
+
+	void Application::OnWindowResize(const WindowResizeArgs& args)
+	{
+		m_WindowWidth = args.Width;
+		m_WindowHeight = args.Height;
+		glViewport(0, 0, args.Width, args.Height);
+	}
+
+	void Application::MouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
+	{
+		Application* app = static_cast<Application*>(glfwGetWindowUserPointer(window));
+		if (app)
+		{
+			MouseButtonArgs args{ button, action, mods };
+			app->OnMouseButton(args);
+		}
+	}
+
+	void Application::CursorPosCallback(GLFWwindow* window, double xpos, double ypos)
+	{
+		Application* app = static_cast<Application*>(glfwGetWindowUserPointer(window));
+		if (app)
+		{
+			double deltaX = xpos - app->m_LastMouseX;
+			double deltaY = ypos - app->m_LastMouseY;
+			app->m_LastMouseX = xpos;
+			app->m_LastMouseY = ypos;
+
+			MouseMoveArgs args{ xpos, ypos, deltaX, deltaY };
+			app->OnMouseMove(args);
+		}
+	}
+
+	void Application::ScrollCallback(GLFWwindow* window, double xoffset, double yoffset)
+	{
+		Application* app = static_cast<Application*>(glfwGetWindowUserPointer(window));
+		if (app)
+		{
+			ScrollArgs args{ xoffset, yoffset };
+			app->OnScroll(args);
+		}
+	}
+
+	void Application::FramebufferSizeCallback(GLFWwindow* window, int width, int height)
+	{
+		Application* app = static_cast<Application*>(glfwGetWindowUserPointer(window));
+		if (app)
+		{
+			WindowResizeArgs args{ width, height };
+			app->OnWindowResize(args);
+		}
+	}
+
+	bool Application::IsImGuiCapturingMouse() const
+	{
+		ImGuiIO& io = ImGui::GetIO();
+		return io.WantCaptureMouse;
 	}
 }
