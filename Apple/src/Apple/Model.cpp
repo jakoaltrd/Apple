@@ -1,12 +1,22 @@
 #include "Model.h"
 #include "Log.h"
-#include "stb_image.h"
+
+// Use tinygltf implementation with embedded stb_image
+#define TINYGLTF_IMPLEMENTATION
+#define STB_IMAGE_IMPLEMENTATION
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "tiny_gltf.h"
+
 #include <algorithm>
 #include <glm/gtx/matrix_decompose.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
 #define MAX_TEXTURE_UNITS 16
+
+// Use stb_image functions from tinygltf's stb_image.h
+#define STB_IMAGE_STATIC
+#include "stb_image.h"
 
 namespace Apple
 {
@@ -44,54 +54,62 @@ namespace Apple
 
     bool Model::LoadFromText(const std::string& filepath)
     {
-        try
-        {
-            fx::gltf::ReadQuotas quotas{};
-            quotas.MaxBufferCount = 16;
-            quotas.MaxBufferByteLength = 128 * 1024 * 1024; // 128MB
-            quotas.MaxFileSize = 128 * 1024 * 1024;
+        tinygltf::TinyGLTF loader;
+        tinygltf::Model model;
+        std::string err;
+        std::string warn;
 
-            fx::gltf::Document doc = fx::gltf::LoadFromText(filepath, quotas);
-            return ProcessDocument(doc);
-        }
-        catch (const fx::gltf::invalid_gltf_document& ex)
+        bool res = loader.LoadASCIIFromFile(&model, &err, &warn, filepath);
+
+        if (!warn.empty())
         {
-            m_LastError = std::string("Invalid glTF document: ") + ex.what();
-            APPLE_CORE_ERROR("Failed to load glTF: {}", m_LastError);
+            APPLE_CORE_WARN("glTF warning: {}", warn);
+        }
+
+        if (!err.empty())
+        {
+            m_LastError = err;
+            APPLE_CORE_ERROR("glTF error: {}", err);
+        }
+
+        if (!res)
+        {
+            m_LastError = "Failed to load glTF file";
+            APPLE_CORE_ERROR("Failed to load glTF: {}", filepath);
             return false;
         }
-        catch (const std::exception& ex)
-        {
-            m_LastError = std::string("Exception: ") + ex.what();
-            APPLE_CORE_ERROR("Failed to load glTF: {}", m_LastError);
-            return false;
-        }
+
+        return ProcessDocument(model);
     }
 
     bool Model::LoadFromBinary(const std::string& filepath)
     {
-        try
-        {
-            fx::gltf::ReadQuotas quotas{};
-            quotas.MaxBufferCount = 16;
-            quotas.MaxBufferByteLength = 128 * 1024 * 1024;
-            quotas.MaxFileSize = 128 * 1024 * 1024;
+        tinygltf::TinyGLTF loader;
+        tinygltf::Model model;
+        std::string err;
+        std::string warn;
 
-            fx::gltf::Document doc = fx::gltf::LoadFromBinary(filepath, quotas);
-            return ProcessDocument(doc);
-        }
-        catch (const fx::gltf::invalid_gltf_document& ex)
+        bool res = loader.LoadBinaryFromFile(&model, &err, &warn, filepath);
+
+        if (!warn.empty())
         {
-            m_LastError = std::string("Invalid glTF document: ") + ex.what();
-            APPLE_CORE_ERROR("Failed to load glTF binary: {}", m_LastError);
+            APPLE_CORE_WARN("glTF binary warning: {}", warn);
+        }
+
+        if (!err.empty())
+        {
+            m_LastError = err;
+            APPLE_CORE_ERROR("glTF binary error: {}", err);
+        }
+
+        if (!res)
+        {
+            m_LastError = "Failed to load glTF binary file";
+            APPLE_CORE_ERROR("Failed to load glTF binary: {}", filepath);
             return false;
         }
-        catch (const std::exception& ex)
-        {
-            m_LastError = std::string("Exception: ") + ex.what();
-            APPLE_CORE_ERROR("Failed to load glTF binary: {}", m_LastError);
-            return false;
-        }
+
+        return ProcessDocument(model);
     }
 
     void Model::Unload()
@@ -124,7 +142,7 @@ namespace Apple
         m_FilePath.clear();
     }
 
-    bool Model::ProcessDocument(const fx::gltf::Document& doc)
+    bool Model::ProcessDocument(const tinygltf::Model& model)
     {
         Unload();
 
@@ -133,29 +151,29 @@ namespace Apple
         std::string baseDir = (lastSlash != std::string::npos) ?
             m_FilePath.substr(0, lastSlash + 1) : "";
 
-        m_DefaultScene = doc.scene;
+        m_DefaultScene = model.defaultScene;
 
         // Load materials first
-        if (!LoadMaterials(doc))
+        if (!LoadMaterials(model))
         {
             APPLE_CORE_WARN("Failed to load materials");
         }
 
         // Load textures
-        if (!LoadTextures(doc, baseDir))
+        if (!LoadTextures(model, baseDir))
         {
             APPLE_CORE_WARN("Failed to load textures");
         }
 
         // Load meshes
-        if (!LoadMeshes(doc))
+        if (!LoadMeshes(model))
         {
             m_LastError = "Failed to load meshes";
             return false;
         }
 
         // Load scene nodes
-        if (!LoadNodes(doc))
+        if (!LoadNodes(model))
         {
             APPLE_CORE_WARN("Failed to load nodes");
         }
@@ -167,55 +185,103 @@ namespace Apple
         return true;
     }
 
-    bool Model::LoadMaterials(const fx::gltf::Document& doc)
+    bool Model::LoadMaterials(const tinygltf::Model& model)
     {
-        m_Materials.reserve(doc.materials.size());
+        m_Materials.reserve(model.materials.size());
 
-        for (const auto& gltfMat : doc.materials)
+        for (const auto& gltfMat : model.materials)
         {
             MaterialData mat{};
 
             // PBR Metallic-Roughness
-            if (!gltfMat.pbrMetallicRoughness.empty())
+            auto baseColorIt = gltfMat.values.find("baseColorFactor");
+            if (baseColorIt != gltfMat.values.end())
             {
-                const auto& pbr = gltfMat.pbrMetallicRoughness;
+                const auto& color = baseColorIt->second.ColorFactor();
+                mat.Albedo = glm::vec4(color[0], color[1], color[2], color[3]);
+            }
+            else
+            {
+                mat.Albedo = glm::vec4(1.0f);
+            }
 
-                if (pbr.baseColorFactor.size() >= 4)
-                {
-                    mat.Albedo = glm::vec4(
-                        pbr.baseColorFactor[0],
-                        pbr.baseColorFactor[1],
-                        pbr.baseColorFactor[2],
-                        pbr.baseColorFactor[3]
-                    );
-                }
+            auto metallicIt = gltfMat.values.find("metallicFactor");
+            if (metallicIt != gltfMat.values.end())
+            {
+                mat.Metallic = static_cast<float>(metallicIt->second.Factor());
+            }
+            else
+            {
+                mat.Metallic = 1.0f;
+            }
 
-                mat.Metallic = pbr.metallicFactor;
-                mat.Roughness = pbr.roughnessFactor;
+            auto roughnessIt = gltfMat.values.find("roughnessFactor");
+            if (roughnessIt != gltfMat.values.end())
+            {
+                mat.Roughness = static_cast<float>(roughnessIt->second.Factor());
+            }
+            else
+            {
+                mat.Roughness = 1.0f;
+            }
 
-                if (!pbr.baseColorTexture.empty())
-                    mat.AlbedoTexture = pbr.baseColorTexture.index;
+            auto baseColorTexIt = gltfMat.values.find("baseColorTexture");
+            if (baseColorTexIt != gltfMat.values.end())
+            {
+                mat.AlbedoTexture = baseColorTexIt->second.TextureIndex();
+            }
 
-                if (!pbr.metallicRoughnessTexture.empty())
-                    mat.MetallicRoughnessTexture = pbr.metallicRoughnessTexture.index;
+            auto metallicRoughnessTexIt = gltfMat.values.find("metallicRoughnessTexture");
+            if (metallicRoughnessTexIt != gltfMat.values.end())
+            {
+                mat.MetallicRoughnessTexture = metallicRoughnessTexIt->second.TextureIndex();
             }
 
             // Normal texture
-            if (!gltfMat.normalTexture.empty())
-                mat.NormalTexture = gltfMat.normalTexture.index;
+            auto normalTexIt = gltfMat.additionalValues.find("normalTexture");
+            if (normalTexIt != gltfMat.additionalValues.end())
+            {
+                mat.NormalTexture = normalTexIt->second.TextureIndex();
+            }
 
             // Occlusion texture
-            if (!gltfMat.occlusionTexture.empty())
-                mat.OcclusionTexture = gltfMat.occlusionTexture.index;
+            auto occlusionTexIt = gltfMat.additionalValues.find("occlusionTexture");
+            if (occlusionTexIt != gltfMat.additionalValues.end())
+            {
+                mat.OcclusionTexture = occlusionTexIt->second.TextureIndex();
+            }
 
-            // Emissive
-            if (!gltfMat.emissiveTexture.empty())
-                mat.EmissiveTexture = gltfMat.emissiveTexture.index;
+            // Emissive texture
+            auto emissiveTexIt = gltfMat.additionalValues.find("emissiveTexture");
+            if (emissiveTexIt != gltfMat.additionalValues.end())
+            {
+                mat.EmissiveTexture = emissiveTexIt->second.TextureIndex();
+            }
 
             // Alpha mode
-            mat.AlphaMode = static_cast<int>(gltfMat.alphaMode);
-            mat.AlphaCutoff = gltfMat.alphaCutoff;
-            mat.DoubleSided = gltfMat.doubleSided;
+            auto alphaModeIt = gltfMat.additionalValues.find("alphaMode");
+            if (alphaModeIt != gltfMat.additionalValues.end())
+            {
+                std::string alphaMode = alphaModeIt->second.string_value;
+                if (alphaMode == "OPAQUE")
+                    mat.AlphaMode = 0;
+                else if (alphaMode == "MASK")
+                    mat.AlphaMode = 1;
+                else if (alphaMode == "BLEND")
+                    mat.AlphaMode = 2;
+            }
+
+            auto alphaCutoffIt = gltfMat.additionalValues.find("alphaCutoff");
+            if (alphaCutoffIt != gltfMat.additionalValues.end())
+            {
+                mat.AlphaCutoff = static_cast<float>(alphaCutoffIt->second.Factor());
+            }
+
+            auto doubleSidedIt = gltfMat.additionalValues.find("doubleSided");
+            if (doubleSidedIt != gltfMat.additionalValues.end())
+            {
+                mat.DoubleSided = doubleSidedIt->second.bool_value;
+            }
 
             m_Materials.push_back(std::move(mat));
         }
@@ -229,21 +295,21 @@ namespace Apple
         return true;
     }
 
-    bool Model::LoadTextures(const fx::gltf::Document& doc, const std::string& baseDir)
+    bool Model::LoadTextures(const tinygltf::Model& model, const std::string& baseDir)
     {
-        m_Textures.reserve(doc.textures.size());
+        m_Textures.reserve(model.textures.size());
         APPLE_CORE_INFO("Loading textures from base directory: {}", baseDir);
 
-        for (const auto& gltfTex : doc.textures)
+        for (const auto& gltfTex : model.textures)
         {
             TextureData tex{};
 
             tex.SamplerIndex = gltfTex.sampler;
 
-            if (gltfTex.source >= 0 && gltfTex.source < static_cast<int32_t>(doc.images.size()))
+            if (gltfTex.source >= 0 && gltfTex.source < static_cast<int32_t>(model.images.size()))
             {
-                const auto& image = doc.images[gltfTex.source];
-                tex.TextureID = LoadTextureImage(doc, image, baseDir);
+                const auto& image = model.images[gltfTex.source];
+                tex.TextureID = LoadTextureImage(model, image, baseDir);
             }
 
             m_Textures.push_back(std::move(tex));
@@ -252,11 +318,11 @@ namespace Apple
         return true;
     }
 
-    bool Model::LoadMeshes(const fx::gltf::Document& doc)
+    bool Model::LoadMeshes(const tinygltf::Model& model)
     {
-        m_Meshes.reserve(doc.meshes.size());
+        m_Meshes.reserve(model.meshes.size());
 
-        for (const auto& gltfMesh : doc.meshes)
+        for (const auto& gltfMesh : model.meshes)
         {
             MeshData meshData{};
             meshData.Name = gltfMesh.name;
@@ -265,7 +331,7 @@ namespace Apple
             {
                 MeshPrimitive prim{};
 
-                if (!CreatePrimitive(doc, gltfPrim, prim))
+                if (!CreatePrimitive(model, gltfPrim, prim))
                 {
                     APPLE_CORE_ERROR("Failed to create primitive for mesh: {}", gltfMesh.name);
                     continue;
@@ -281,12 +347,12 @@ namespace Apple
         return !m_Meshes.empty();
     }
 
-    bool Model::LoadNodes(const fx::gltf::Document& doc)
+    bool Model::LoadNodes(const tinygltf::Model& model)
     {
-        m_Nodes.reserve(doc.nodes.size());
+        m_Nodes.reserve(model.nodes.size());
 
         // First pass: create all nodes
-        for (const auto& gltfNode : doc.nodes)
+        for (const auto& gltfNode : model.nodes)
         {
             Node node{};
 
@@ -304,28 +370,28 @@ namespace Apple
                 if (gltfNode.translation.size() >= 3)
                 {
                     node.Translation = glm::vec3(
-                        gltfNode.translation[0],
-                        gltfNode.translation[1],
-                        gltfNode.translation[2]
+                        static_cast<float>(gltfNode.translation[0]),
+                        static_cast<float>(gltfNode.translation[1]),
+                        static_cast<float>(gltfNode.translation[2])
                     );
                 }
 
                 if (gltfNode.rotation.size() >= 4)
                 {
                     node.Rotation = glm::quat(
-                        gltfNode.rotation[3],
-                        gltfNode.rotation[0],
-                        gltfNode.rotation[1],
-                        gltfNode.rotation[2]
+                        static_cast<float>(gltfNode.rotation[3]),
+                        static_cast<float>(gltfNode.rotation[0]),
+                        static_cast<float>(gltfNode.rotation[1]),
+                        static_cast<float>(gltfNode.rotation[2])
                     );
                 }
 
                 if (gltfNode.scale.size() >= 3)
                 {
                     node.Scale = glm::vec3(
-                        gltfNode.scale[0],
-                        gltfNode.scale[1],
-                        gltfNode.scale[2]
+                        static_cast<float>(gltfNode.scale[0]),
+                        static_cast<float>(gltfNode.scale[1]),
+                        static_cast<float>(gltfNode.scale[2])
                     );
                 }
             }
@@ -344,20 +410,20 @@ namespace Apple
         return true;
     }
 
-    bool Model::CreatePrimitive(const fx::gltf::Document& doc,
-        const fx::gltf::Primitive& primitive,
+    bool Model::CreatePrimitive(const tinygltf::Model& model,
+        const tinygltf::Primitive& primitive,
         MeshPrimitive& outPrimitive)
     {
         std::vector<Vertex> vertices;
         std::vector<uint32_t> indices;
 
-        if (!ExtractVertices(doc, primitive, vertices))
+        if (!ExtractVertices(model, primitive, vertices))
         {
             m_LastError = "Failed to extract vertices";
             return false;
         }
 
-        if (!ExtractIndices(doc, primitive, indices))
+        if (!ExtractIndices(model, primitive, indices))
         {
             m_LastError = "Failed to extract indices";
             return false;
@@ -417,8 +483,8 @@ namespace Apple
         return true;
     }
 
-    bool Model::ExtractVertices(const fx::gltf::Document& doc,
-        const fx::gltf::Primitive& primitive,
+    bool Model::ExtractVertices(const tinygltf::Model& model,
+        const tinygltf::Primitive& primitive,
         std::vector<Vertex>& outVertices)
     {
         // Determine vertex count from position accessor
@@ -430,19 +496,19 @@ namespace Apple
         }
 
         int32_t posAccessorIdx = posIt->second;
-        if (posAccessorIdx < 0 || posAccessorIdx >= static_cast<int32_t>(doc.accessors.size()))
+        if (posAccessorIdx < 0 || posAccessorIdx >= static_cast<int32_t>(model.accessors.size()))
         {
             m_LastError = "Invalid POSITION accessor index";
             return false;
         }
 
-        const auto& posAccessor = doc.accessors[posAccessorIdx];
+        const auto& posAccessor = model.accessors[posAccessorIdx];
         size_t vertexCount = posAccessor.count;
         outVertices.resize(vertexCount);
 
         // Extract positions
         std::vector<float> positions;
-        if (GetAccessorData(doc, posAccessorIdx, positions))
+        if (GetAccessorData(model, posAccessorIdx, positions))
         {
             for (size_t i = 0; i < vertexCount; ++i)
             {
@@ -462,7 +528,7 @@ namespace Apple
         if (normalIt != primitive.attributes.end())
         {
             std::vector<float> normals;
-            if (GetAccessorData(doc, normalIt->second, normals))
+            if (GetAccessorData(model, normalIt->second, normals))
             {
                 for (size_t i = 0; i < vertexCount; ++i)
                 {
@@ -483,7 +549,7 @@ namespace Apple
         if (texCoordIt != primitive.attributes.end())
         {
             std::vector<float> texCoords;
-            if (GetAccessorData(doc, texCoordIt->second, texCoords))
+            if (GetAccessorData(model, texCoordIt->second, texCoords))
             {
                 for (size_t i = 0; i < vertexCount; ++i)
                 {
@@ -504,10 +570,10 @@ namespace Apple
         {
             // Try vec4 first
             std::vector<float> colors;
-            if (GetAccessorData(doc, colorIt->second, colors))
+            if (GetAccessorData(model, colorIt->second, colors))
             {
-                const auto& colorAccessor = doc.accessors[colorIt->second];
-                bool isVec4 = (colorAccessor.type == fx::gltf::Accessor::Type::Vec4);
+                const auto& colorAccessor = model.accessors[colorIt->second];
+                bool isVec4 = (colorAccessor.type == TINYGLTF_TYPE_VEC4);
 
                 for (size_t i = 0; i < vertexCount; ++i)
                 {
@@ -538,7 +604,7 @@ namespace Apple
         if (tangentIt != primitive.attributes.end())
         {
             std::vector<float> tangents;
-            if (GetAccessorData(doc, tangentIt->second, tangents))
+            if (GetAccessorData(model, tangentIt->second, tangents))
             {
                 for (size_t i = 0; i < vertexCount; ++i)
                 {
@@ -558,8 +624,8 @@ namespace Apple
         return true;
     }
 
-    bool Model::ExtractIndices(const fx::gltf::Document& doc,
-        const fx::gltf::Primitive& primitive,
+    bool Model::ExtractIndices(const tinygltf::Model& model,
+        const tinygltf::Primitive& primitive,
         std::vector<uint32_t>& outIndices)
     {
         if (primitive.indices < 0)
@@ -568,7 +634,7 @@ namespace Apple
             auto posIt = primitive.attributes.find("POSITION");
             if (posIt != primitive.attributes.end())
             {
-                const auto& posAccessor = doc.accessors[posIt->second];
+                const auto& posAccessor = model.accessors[posIt->second];
                 outIndices.resize(posAccessor.count);
                 for (size_t i = 0; i < posAccessor.count; ++i)
                 {
@@ -584,28 +650,28 @@ namespace Apple
         std::vector<uint16_t> indices16;
         std::vector<uint32_t> indices32;
 
-        const auto& accessor = doc.accessors[primitive.indices];
+        const auto& accessor = model.accessors[primitive.indices];
 
         switch (accessor.componentType)
         {
-        case fx::gltf::Accessor::ComponentType::UnsignedByte:
-            if (GetAccessorData(doc, primitive.indices, indices8))
+        case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE:
+            if (GetAccessorData(model, primitive.indices, indices8))
             {
                 outIndices.assign(indices8.begin(), indices8.end());
                 return true;
             }
             break;
 
-        case fx::gltf::Accessor::ComponentType::UnsignedShort:
-            if (GetAccessorData(doc, primitive.indices, indices16))
+        case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT:
+            if (GetAccessorData(model, primitive.indices, indices16))
             {
                 outIndices.assign(indices16.begin(), indices16.end());
                 return true;
             }
             break;
 
-        case fx::gltf::Accessor::ComponentType::UnsignedInt:
-            if (GetAccessorData(doc, primitive.indices, indices32))
+        case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT:
+            if (GetAccessorData(model, primitive.indices, indices32))
             {
                 outIndices = indices32;
                 return true;
@@ -621,30 +687,30 @@ namespace Apple
     }
 
     template<typename T>
-    bool Model::GetAccessorData(const fx::gltf::Document& doc,
+    bool Model::GetAccessorData(const tinygltf::Model& model,
         int32_t accessorIndex,
         std::vector<T>& outData)
     {
-        if (accessorIndex < 0 || accessorIndex >= static_cast<int32_t>(doc.accessors.size()))
+        if (accessorIndex < 0 || accessorIndex >= static_cast<int32_t>(model.accessors.size()))
         {
             return false;
         }
 
-        const auto& accessor = doc.accessors[accessorIndex];
+        const auto& accessor = model.accessors[accessorIndex];
 
-        if (accessor.bufferView < 0 || accessor.bufferView >= static_cast<int32_t>(doc.bufferViews.size()))
+        if (accessor.bufferView < 0 || accessor.bufferView >= static_cast<int32_t>(model.bufferViews.size()))
         {
             return false;
         }
 
-        const auto& bufferView = doc.bufferViews[accessor.bufferView];
+        const auto& bufferView = model.bufferViews[accessor.bufferView];
 
-        if (bufferView.buffer < 0 || bufferView.buffer >= static_cast<int32_t>(doc.buffers.size()))
+        if (bufferView.buffer < 0 || bufferView.buffer >= static_cast<int32_t>(model.buffers.size()))
         {
             return false;
         }
 
-        const auto& buffer = doc.buffers[bufferView.buffer];
+        const auto& buffer = model.buffers[bufferView.buffer];
         const uint8_t* data = buffer.data.data();
 
         size_t offset = bufferView.byteOffset + accessor.byteOffset;
@@ -655,23 +721,25 @@ namespace Apple
         size_t elementSize;
         switch (accessor.type)
         {
-        case fx::gltf::Accessor::Type::Scalar:
+        case TINYGLTF_TYPE_SCALAR:
             elementSize = 1;
             break;
-        case fx::gltf::Accessor::Type::Vec2:
+        case TINYGLTF_TYPE_VEC2:
             elementSize = 2;
             break;
-        case fx::gltf::Accessor::Type::Vec3:
+        case TINYGLTF_TYPE_VEC3:
             elementSize = 3;
             break;
-        case fx::gltf::Accessor::Type::Vec4:
-        case fx::gltf::Accessor::Type::Mat2:
+        case TINYGLTF_TYPE_VEC4:
             elementSize = 4;
             break;
-        case fx::gltf::Accessor::Type::Mat3:
+        case TINYGLTF_TYPE_MAT2:
+            elementSize = 4;
+            break;
+        case TINYGLTF_TYPE_MAT3:
             elementSize = 9;
             break;
-        case fx::gltf::Accessor::Type::Mat4:
+        case TINYGLTF_TYPE_MAT4:
             elementSize = 16;
             break;
         default:
@@ -682,16 +750,16 @@ namespace Apple
         size_t componentSize = 0;
         switch (accessor.componentType)
         {
-        case fx::gltf::Accessor::ComponentType::Byte:
-        case fx::gltf::Accessor::ComponentType::UnsignedByte:
+        case TINYGLTF_COMPONENT_TYPE_BYTE:
+        case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE:
             componentSize = 1;
             break;
-        case fx::gltf::Accessor::ComponentType::Short:
-        case fx::gltf::Accessor::ComponentType::UnsignedShort:
+        case TINYGLTF_COMPONENT_TYPE_SHORT:
+        case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT:
             componentSize = 2;
             break;
-        case fx::gltf::Accessor::ComponentType::UnsignedInt:
-        case fx::gltf::Accessor::ComponentType::Float:
+        case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT:
+        case TINYGLTF_COMPONENT_TYPE_FLOAT:
             componentSize = 4;
             break;
         default:
@@ -716,7 +784,7 @@ namespace Apple
         return true;
     }
 
-    glm::mat4 Model::GetNodeTransform(const fx::gltf::Node& node) const
+    glm::mat4 Model::GetNodeTransform(const tinygltf::Node& node) const
     {
         if (!node.matrix.empty())
         {
@@ -779,8 +847,8 @@ namespace Apple
         return m_Nodes[nodeIndex].LocalTransform;
     }
 
-    GLuint Model::LoadTextureImage(const fx::gltf::Document& doc,
-        const fx::gltf::Image& image,
+    GLuint Model::LoadTextureImage(const tinygltf::Model& model,
+        const tinygltf::Image& image,
         const std::string& baseDir)
     {
         int width, height, channels;
@@ -789,166 +857,135 @@ namespace Apple
 
         APPLE_CORE_INFO("Loading texture: {}", textureName);
 
-        // Case 1: Embedded in .glb buffer (bufferView >= 0)
-        if (image.bufferView >= 0)
+        // Case 1: Image data already loaded by tinygltf
+        if (!image.image.empty())
         {
-            const auto& bufferView = doc.bufferViews[image.bufferView];
-            const auto& buffer = doc.buffers[bufferView.buffer];
+            width = image.width;
+            height = image.height;
+            channels = image.component;
+            pixels = const_cast<unsigned char*>(image.image.data());
 
-            const uint8_t* data = buffer.data.data() + bufferView.byteOffset;
-            int dataSize = static_cast<int>(bufferView.byteLength);
+            APPLE_CORE_INFO("  -> Pre-loaded image: {}x{}, {} channels", width, height, channels);
 
-            APPLE_CORE_INFO("  -> Embedded in GLB buffer, size: {} bytes", dataSize);
-
-            // Check for DDS magic bytes
-            if (dataSize >= 4 && data[0] == 'D' && data[1] == 'D' && data[2] == 'S' && data[3] == ' ')
+            if (pixels && width > 0 && height > 0)
             {
-                APPLE_CORE_ERROR("  -> DDS format not supported (stb_image limitation)");
-                return 0;
+                // Create OpenGL texture from pre-loaded data
+                GLuint textureID;
+                glGenTextures(1, &textureID);
+                glBindTexture(GL_TEXTURE_2D, textureID);
+
+                GLenum format = GL_RGB;
+                if (channels == 1)
+                    format = GL_RED;
+                else if (channels == 2)
+                    format = GL_RG;
+                else if (channels == 4)
+                    format = GL_RGBA;
+
+                GLenum type = GL_UNSIGNED_BYTE;
+                if (image.bits == 16)
+                    type = GL_UNSIGNED_SHORT;
+
+                glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, type, pixels);
+                glGenerateMipmap(GL_TEXTURE_2D);
+
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+                APPLE_CORE_INFO("  -> Created GL texture ID: {}", textureID);
+                return textureID;
             }
+        }
 
-            // Try to load
-            pixels = stbi_load_from_memory(data, dataSize, &width, &height, &channels, 0);
-            if (pixels)
+        // Case 2: External file
+        if (!image.uri.empty() && image.bufferView < 0)
+        {
+            APPLE_CORE_INFO("  -> External file: {}", image.uri);
+
+            // Extract filename from uri
+            size_t lastSlash = image.uri.find_last_of("/\\");
+            std::string filename = (lastSlash != std::string::npos) ?
+                image.uri.substr(lastSlash + 1) : image.uri;
+
+            // Get base name and extension
+            size_t dotPos = filename.find_last_of('.');
+            std::string baseName = (dotPos != std::string::npos) ?
+                filename.substr(0, dotPos) : filename;
+            std::string ext = (dotPos != std::string::npos) ?
+                filename.substr(dotPos) : "";
+
+            // Convert extension to lowercase
+            std::string extLower = ext;
+            std::transform(extLower.begin(), extLower.end(),
+                extLower.begin(), ::tolower);
+
+            // Use baseDir (glTF file directory) as texture path
+            std::string textureBasePath = baseDir;
+
+            // Try different formats
+            bool loaded = false;
+            std::vector<std::string> extensionsToTry;
+
+            if (extLower == ".dds")
             {
-                APPLE_CORE_INFO("  -> Loaded successfully: {}x{}, {} channels", width, height, channels);
+                // Skip DDS, try jpg/png
+                extensionsToTry = { ".jpg", ".jpeg", ".png" };
             }
             else
             {
-                APPLE_CORE_ERROR("  -> Failed to decode embedded image");
+                // Try original first, then alternatives
+                extensionsToTry = { ext, ".jpg", ".jpeg", ".png" };
+            }
+
+            for (const auto& extToTry : extensionsToTry)
+            {
+                std::string imagePath = textureBasePath + baseName + extToTry;
+                APPLE_CORE_INFO("  -> Trying: {}", imagePath);
+
+                pixels = stbi_load(imagePath.c_str(), &width, &height, &channels, 0);
+                if (pixels)
+                {
+                    APPLE_CORE_INFO("  -> Loaded successfully");
+                    loaded = true;
+                    break;
+                }
+            }
+
+            if (!loaded || !pixels)
+            {
+                APPLE_CORE_ERROR("  -> Failed to load from all attempted paths");
                 return 0;
             }
-        }
-        // Case 2: External or base64 embedded
-        else if (!image.uri.empty())
-        {
-            // Case 2a: Base64 data URI
-            if (image.IsEmbeddedResource())
-            {
-                APPLE_CORE_INFO("  -> Base64 embedded data");
 
-                std::vector<uint8_t> imageData;
-                try
-                {
-                    image.MaterializeData(imageData);
-                    APPLE_CORE_INFO("  -> Base64 decoded, size: {} bytes", imageData.size());
+            // Create OpenGL texture
+            GLuint textureID;
+            glGenTextures(1, &textureID);
+            glBindTexture(GL_TEXTURE_2D, textureID);
 
-                    // Check for DDS magic bytes
-                    if (imageData.size() >= 4 &&
-                        imageData[0] == 'D' && imageData[1] == 'D' &&
-                        imageData[2] == 'S' && imageData[3] == ' ')
-                    {
-                        APPLE_CORE_ERROR("  -> Base64 data is DDS format (not supported)");
-                        return 0;
-                    }
+            GLenum format = GL_RGB;
+            if (channels == 1)
+                format = GL_RED;
+            else if (channels == 4)
+                format = GL_RGBA;
 
-                    pixels = stbi_load_from_memory(imageData.data(),
-                        static_cast<int>(imageData.size()), &width, &height, &channels, 0);
+            glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, pixels);
+            glGenerateMipmap(GL_TEXTURE_2D);
 
-                    if (!pixels)
-                    {
-                        APPLE_CORE_ERROR("  -> stb_image failed to decode base64 image (may be unsupported format like DDS/KTX/)");
-                        return 0;
-                    }
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-                    APPLE_CORE_INFO("  -> Base64 image loaded: {}x{}, {} channels", width, height, channels);
-                }
-                catch (const std::exception& e)
-                {
-                    APPLE_CORE_ERROR("  -> Exception during base64 decode: {}", e.what());
-                    return 0;
-                }
-            }
-            // Case 2b: External file
-            else
-            {
-                APPLE_CORE_INFO("  -> External file: {}", image.uri);
+            stbi_image_free(pixels);
 
-                // Extract filename from uri
-                size_t lastSlash = image.uri.find_last_of("/\\");
-                std::string filename = (lastSlash != std::string::npos) ?
-                    image.uri.substr(lastSlash + 1) : image.uri;
-
-                // Get base name and extension
-                size_t dotPos = filename.find_last_of('.');
-                std::string baseName = (dotPos != std::string::npos) ?
-                    filename.substr(0, dotPos) : filename;
-                std::string ext = (dotPos != std::string::npos) ?
-                    filename.substr(dotPos) : "";
-
-                // Convert extension to lowercase
-                std::string extLower = ext;
-                std::transform(extLower.begin(), extLower.end(),
-                    extLower.begin(), ::tolower);
-
-                // Use baseDir (glTF file directory) as texture path
-                std::string textureBasePath = baseDir;
-
-                // Try different formats
-                bool loaded = false;
-                std::vector<std::string> extensionsToTry;
-
-                if (extLower == ".dds")
-                {
-                    // Skip DDS, try jpg/png
-                    extensionsToTry = { ".jpg", ".jpeg", ".png" };
-                }
-                else
-                {
-                    // Try original first, then alternatives
-                    extensionsToTry = { ext, ".jpg", ".jpeg", ".png" };
-                }
-
-                for (const auto& extToTry : extensionsToTry)
-                {
-                    std::string imagePath = textureBasePath + baseName + extToTry;
-                    APPLE_CORE_INFO("  -> Trying: {}", imagePath);
-
-                    pixels = stbi_load(imagePath.c_str(), &width, &height, &channels, 0);
-                    if (pixels)
-                    {
-                        APPLE_CORE_INFO("  -> Loaded successfully");
-                        loaded = true;
-                        break;
-                    }
-                }
-
-                if (!loaded)
-                {
-                    APPLE_CORE_ERROR("  -> Failed to load from all attempted paths");
-                    return 0;
-                }
-            }
-        }
-        else
-        {
-            APPLE_CORE_WARN("  -> No image data (empty bufferView and uri)");
-            return 0;
+            APPLE_CORE_INFO("  -> Created GL texture ID: {}", textureID);
+            return textureID;
         }
 
-        // Create OpenGL texture
-        GLuint textureID;
-        glGenTextures(1, &textureID);
-        glBindTexture(GL_TEXTURE_2D, textureID);
-
-        GLenum format = GL_RGB;
-        if (channels == 1)
-            format = GL_RED;
-        else if (channels == 4)
-            format = GL_RGBA;
-
-        glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, pixels);
-        glGenerateMipmap(GL_TEXTURE_2D);
-
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-        stbi_image_free(pixels);
-
-        APPLE_CORE_INFO("  -> Created GL texture ID: {}", textureID);
-        return textureID;
+        APPLE_CORE_WARN("  -> No image data available");
+        return 0;
     }
 
     void Model::Render() const

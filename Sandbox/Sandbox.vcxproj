@@ -108,6 +108,9 @@
     <ProjectReference Include="..\Apple\vendor\imgui\ImGui.vcxproj">
       <Project>{C0FF640D-2C14-8DBE-F595-301E616989EF}</Project>
     </ProjectReference>
+    <ProjectReference Include="..\Projects\bullet\bullet.vcxproj">
+      <Project>{a1b2c3d4-e5f6-4712-8abc-def012345678}</Project>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -51,14 +51,14 @@
     <IntDir>$(ProjectDir)..\bin-int\Release-windows-x86_64\Apple\</IntDir>
     <TargetName>Apple</TargetName>
     <TargetExt>.lib</TargetExt>
-    <IncludePath>F:\downloads\Apple-master\Apple-master\Apple\vendor\imgui\backends;F:\downloads\Apple-master\Apple-master\Apple\vendor\glm;F:\downloads\Apple-master\Apple-master\Apple\vendor\fx-gltf\fx-gltf\include;F:\downloads\Apple-master\Apple-master\Apple\vendor;$(IncludePath)</IncludePath>
+    <IncludePath>F:\downloads\Apple-master\Apple-master\Apple\vendor\imgui\backends;F:\downloads\Apple-master\Apple-master\Apple\vendor\glm;F:\downloads\Apple-master\Apple-master\Apple\vendor\tinygltf;F:\downloads\Apple-master\Apple-master\Apple\vendor;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <PreprocessorDefinitions>APPLE_PLATFORM_WINDOWS;_CRT_SECURE_NO_WARNINGS;APPLE_DEBUG;GLM_ENABLE_EXPERIMENTAL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>src;vendor\spdlog\include;vendor\glfw\include;vendor\glfw\deps;vendor\imgui;vendor\glm;vendor\fx-gltf\fx-gltf\include;vendor\bullet\examples\ThirdPartyLibs;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>src;vendor\spdlog\include;vendor\glfw\include;vendor\glfw\deps;vendor\imgui;vendor\glm;vendor\tinygltf;vendor\bullet\src;vendor\bullet\examples\ThirdPartyLibs;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
       <Optimization>Disabled</Optimization>
       <LanguageStandard>stdcpp17</LanguageStandard>
@@ -76,7 +76,7 @@
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <PreprocessorDefinitions>APPLE_PLATFORM_WINDOWS;_CRT_SECURE_NO_WARNINGS;APPLE_RELEASE;GLM_ENABLE_EXPERIMENTAL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>src;vendor\spdlog\include;vendor\glfw\include;vendor\glfw\deps;vendor\imgui;vendor\glm;vendor\fx-gltf\fx-gltf\include;vendor\bullet\examples\ThirdPartyLibs;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>src;vendor\spdlog\include;vendor\glfw\include;vendor\glfw\deps;vendor\imgui;vendor\glm;vendor\tinygltf;vendor\bullet\src;vendor\bullet\examples\ThirdPartyLibs;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <Optimization>Full</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
@@ -101,8 +101,9 @@
     <ClInclude Include="src\Apple\Log.h" />
     <ClInclude Include="src\Apple\Model.h" />
     <ClInclude Include="src\Apple\stb_image.h" />
-    <ClInclude Include="vendor\fx-gltf\fx-gltf\include\fx\gltf.h" />
-    <ClInclude Include="vendor\fx-gltf\fx-gltf\include\fx\json.hpp" />
+    <ClInclude Include="vendor\tinygltf\stb_image.h" />
+    <ClInclude Include="vendor\tinygltf\stb_image_write.h" />
+    <ClInclude Include="vendor\tinygltf\tiny_gltf.h" />
     <ClInclude Include="vendor\glad\glad.h" />
     <ClInclude Include="vendor\glad\khrplatform.h" />
     <ClInclude Include="vendor\glm\glm\glm.hpp" />
@@ -217,6 +218,9 @@
     <ClCompile Include="src\Apple\Application.cpp" />
     <ClCompile Include="src\Apple\Log.cpp" />
     <ClCompile Include="src\Apple\Model.cpp" />
+    <ClCompile Include="vendor\bullet\src\btLinearMathAll.cpp" />
+    <ClCompile Include="vendor\bullet\src\btBulletCollisionAll.cpp" />
+    <ClCompile Include="vendor\bullet\src\btBulletDynamicsAll.cpp" />
     <ClCompile Include="src\Apple\stb_image.cpp" />
     <ClCompile Include="vendor\bullet\examples\ThirdPartyLibs\stb_image\stb_image.cpp" />
     <ClCompile Include="vendor\glad\glad.c" />

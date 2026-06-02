@@ -1,0 +1,14 @@
+﻿F:\Program Files\Microsoft Visual Studio\18\Community\MSBuild\Current\Bin\amd64\Microsoft.Common.CurrentVersion.targets(2205,5): warning MSB9008: 引用的项目 ..\Apple\Apple.vcxproj 不存在。
+  main.cpp
+F:\Windows Kits\10\Include\10.0.26100.0\shared\minwindef.h(130,9): warning C4005: “APIENTRY”: 宏重定义
+  (编译源文件“src/main.cpp”)
+      F:\downloads\Apple-master\Apple-master\Apple\vendor\glfw\include\GLFW\glfw3.h(123,11):
+      参见“APIENTRY”的前一个定义
+  
+F:\downloads\Apple-master\Apple-master\Projects\PhysicsTest\src\main.cpp(234,34): warning C4244: “参数”: 从“GLdouble”转换到“const btScalar”，可能丢失数据
+F:\downloads\Apple-master\Apple-master\Projects\PhysicsTest\src\main.cpp(234,27): warning C4244: “参数”: 从“GLdouble”转换到“const btScalar”，可能丢失数据
+F:\downloads\Apple-master\Apple-master\Projects\PhysicsTest\src\main.cpp(234,20): warning C4244: “参数”: 从“GLdouble”转换到“const btScalar”，可能丢失数据
+F:\downloads\Apple-master\Apple-master\Projects\PhysicsTest\src\main.cpp(235,30): warning C4244: “参数”: 从“GLdouble”转换到“const btScalar”，可能丢失数据
+F:\downloads\Apple-master\Apple-master\Projects\PhysicsTest\src\main.cpp(235,24): warning C4244: “参数”: 从“GLdouble”转换到“const btScalar”，可能丢失数据
+F:\downloads\Apple-master\Apple-master\Projects\PhysicsTest\src\main.cpp(235,18): warning C4244: “参数”: 从“GLdouble”转换到“const btScalar”，可能丢失数据
+  PhysicsTest.vcxproj -> F:\downloads\Apple-master\Apple-master\x64\Release\PhysicsTest.exe

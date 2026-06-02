@@ -383,6 +383,6 @@ Apple::Application* Apple::CreateApplication()
 {
 	auto* app = new ModelViewerApp();
 	app->Initialize();
-	app->LoadModel("E:\\AI_coding\\1.7.1\\RTXPT\\Assets\\Models\\glTF-Sample-Models\\2.0\\DragonAttenuation\\glTF-Binary\\DragonAttenuation.glb"); // Specify your model path here
+	app->LoadModel("E:\\AI_coding\\1.7.1\\RTXPT\\Assets\\Models\\living_room\\living_room.gltf"); // Specify your model path here
 	return app;
 }

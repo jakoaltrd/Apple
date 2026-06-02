@@ -1,12 +1,19 @@
 #pragma once
 #include "Core.h"
-#include <fx/gltf.h>
 #include <glad/gl.h>
 #include <string>
 #include <vector>
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <memory>
+
+// Forward declare tinygltf types to avoid including the full header
+namespace tinygltf {
+    class Model;
+    class Node;
+    struct Primitive;
+    struct Image;
+}
 
 namespace Apple
 {
@@ -94,34 +101,34 @@ namespace Apple
         void RenderPrimitive(uint32_t meshIndex, uint32_t primitiveIndex) const;
 
     private:
-        bool ProcessDocument(const fx::gltf::Document& doc);
-        bool LoadMaterials(const fx::gltf::Document& doc);
-        bool LoadTextures(const fx::gltf::Document& doc, const std::string& baseDir);
-        bool LoadMeshes(const fx::gltf::Document& doc);
-        bool LoadNodes(const fx::gltf::Document& doc);
+        bool ProcessDocument(const tinygltf::Model& model);
+        bool LoadMaterials(const tinygltf::Model& model);
+        bool LoadTextures(const tinygltf::Model& model, const std::string& baseDir);
+        bool LoadMeshes(const tinygltf::Model& model);
+        bool LoadNodes(const tinygltf::Model& model);
 
-        bool CreatePrimitive(const fx::gltf::Document& doc,
-            const fx::gltf::Primitive& primitive,
+        bool CreatePrimitive(const tinygltf::Model& model,
+            const tinygltf::Primitive& primitive,
             MeshPrimitive& outPrimitive);
 
-        bool ExtractVertices(const fx::gltf::Document& doc,
-            const fx::gltf::Primitive& primitive,
+        bool ExtractVertices(const tinygltf::Model& model,
+            const tinygltf::Primitive& primitive,
             std::vector<Vertex>& outVertices);
 
-        bool ExtractIndices(const fx::gltf::Document& doc,
-            const fx::gltf::Primitive& primitive,
+        bool ExtractIndices(const tinygltf::Model& model,
+            const tinygltf::Primitive& primitive,
             std::vector<uint32_t>& outIndices);
 
         template<typename T>
-        bool GetAccessorData(const fx::gltf::Document& doc,
+        bool GetAccessorData(const tinygltf::Model& model,
             int32_t accessorIndex,
             std::vector<T>& outData);
 
-        glm::mat4 GetNodeTransform(const fx::gltf::Node& node) const;
+        glm::mat4 GetNodeTransform(const tinygltf::Node& node) const;
         glm::mat4 ComputeNodeWorldTransform(uint32_t nodeIndex) const;
 
-        GLuint LoadTextureImage(const fx::gltf::Document& doc,
-            const fx::gltf::Image& image,
+        GLuint LoadTextureImage(const tinygltf::Model& model,
+            const tinygltf::Image& image,
             const std::string& baseDir);
 
     private:
