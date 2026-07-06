@@ -73,6 +73,38 @@ btScalar g_boxMass = 1.0f;
 btScalar g_boxHeight = 10.0f;
 int g_objIndex = 0;
 
+// ============================================
+// Lighting Parameters
+// ============================================
+// 主光 (Key Light) - 暖白光，从右上方照射，提供主要照明和高光
+bool  g_light0Enabled = true;
+float g_light0Pos[3]   = { 15.0f, 25.0f, 15.0f };
+float g_light0Ambient  = 0.15f;
+float g_light0Diffuse  = 0.85f;
+float g_light0Specular = 0.9f;
+
+// 补光 (Fill Light) - 冷色光，从左上方照射，柔化阴影
+bool  g_light1Enabled = true;
+float g_light1Pos[3]   = { -15.0f, 15.0f, -10.0f };
+float g_light1Diffuse  = 0.35f;
+float g_light1Specular = 0.15f;
+
+// 背光 (Rim Light) - 从背后照射，勾勒物体轮廓
+bool  g_light2Enabled = true;
+float g_light2Pos[3]   = { 0.0f, 12.0f, -25.0f };
+float g_light2Diffuse  = 0.25f;
+float g_light2Specular = 0.2f;
+
+// 全局环境光强度
+float g_globalAmbient = 0.18f;
+
+// 物体材质高光参数
+float g_materialShininess = 64.0f;
+float g_materialSpecular  = 0.6f;
+
+// 是否绘制光源位置标记
+bool g_showLightMarkers = true;
+
 // Colors
 btVector3 g_colors[] = {
 	btVector3(1.0f, 0.3f, 0.3f),
@@ -413,6 +445,123 @@ void DrawGround(float size) {
 }
 
 // ============================================
+// Lighting Setup
+// ============================================
+
+// 配置场景中的所有光源、全局环境光和材质属性
+// 注意：调用前应已设置好模型视图矩阵（相机变换），
+// 因为 glLight(GL_POSITION) 会受到当前模型视图矩阵的影响。
+void SetupSceneLights() {
+	glEnable(GL_LIGHTING);
+	glEnable(GL_NORMALIZE);  // 法线自动归一化（物体经过缩放时尤为重要）
+
+	// 全局环境光 (GL_LIGHT_MODEL_AMBIENT) - 提升暗部可见性
+	float globalAmbient[4] = {
+		g_globalAmbient, g_globalAmbient, g_globalAmbient, 1.0f
+	};
+	glLightModelfv(GL_LIGHT_MODEL_AMBIENT, globalAmbient);
+
+	// 使用双面光照，让墙体内部等也能正确受光
+	glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_TRUE);
+
+	// --- 主光 (Key Light) GL_LIGHT0 ---
+	if (g_light0Enabled) {
+		glEnable(GL_LIGHT0);
+		float pos[4]     = { g_light0Pos[0], g_light0Pos[1], g_light0Pos[2], 1.0f };
+		float ambient[4] = { g_light0Ambient,  g_light0Ambient,  g_light0Ambient,  1.0f };
+		// 暖白色 (略带黄色) 主光
+		float diffuse[4] = { g_light0Diffuse,   g_light0Diffuse * 0.97f, g_light0Diffuse * 0.9f, 1.0f };
+		float specular[4]= { g_light0Specular,  g_light0Specular, g_light0Specular, 1.0f };
+		glLightfv(GL_LIGHT0, GL_POSITION, pos);
+		glLightfv(GL_LIGHT0, GL_AMBIENT,  ambient);
+		glLightfv(GL_LIGHT0, GL_DIFFUSE,  diffuse);
+		glLightfv(GL_LIGHT0, GL_SPECULAR, specular);
+	} else {
+		glDisable(GL_LIGHT0);
+	}
+
+	// --- 补光 (Fill Light) GL_LIGHT1 ---
+	if (g_light1Enabled) {
+		glEnable(GL_LIGHT1);
+		float pos[4]      = { g_light1Pos[0], g_light1Pos[1], g_light1Pos[2], 1.0f };
+		// 冷蓝色补光，模拟天光散射
+		float diffuse[4]  = { g_light1Diffuse * 0.75f, g_light1Diffuse * 0.82f, g_light1Diffuse, 1.0f };
+		float specular[4] = { g_light1Specular, g_light1Specular, g_light1Specular, 1.0f };
+		glLightfv(GL_LIGHT1, GL_POSITION, pos);
+		glLightfv(GL_LIGHT1, GL_DIFFUSE,  diffuse);
+		glLightfv(GL_LIGHT1, GL_SPECULAR, specular);
+		// 补光不投射环境光
+		float zero[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+		glLightfv(GL_LIGHT1, GL_AMBIENT, zero);
+	} else {
+		glDisable(GL_LIGHT1);
+	}
+
+	// --- 背光 (Rim Light) GL_LIGHT2 ---
+	if (g_light2Enabled) {
+		glEnable(GL_LIGHT2);
+		float pos[4]      = { g_light2Pos[0], g_light2Pos[1], g_light2Pos[2], 1.0f };
+		// 淡紫白色背光，增强物体轮廓
+		float diffuse[4]  = { g_light2Diffuse * 0.95f, g_light2Diffuse * 0.95f, g_light2Diffuse, 1.0f };
+		float specular[4] = { g_light2Specular, g_light2Specular, g_light2Specular, 1.0f };
+		glLightfv(GL_LIGHT2, GL_POSITION, pos);
+		glLightfv(GL_LIGHT2, GL_DIFFUSE,  diffuse);
+		glLightfv(GL_LIGHT2, GL_SPECULAR, specular);
+		float zero[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+		glLightfv(GL_LIGHT2, GL_AMBIENT, zero);
+	} else {
+		glDisable(GL_LIGHT2);
+	}
+
+	// --- 材质设置 ---
+	// 启用颜色材质，让 glColor 同时控制环境/漫反射颜色，
+	// 同时单独指定高光（GL_SPECULAR）和光泽度（GL_SHININESS）。
+	glEnable(GL_COLOR_MATERIAL);
+	glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
+
+	float matSpecular[4] = {
+		g_materialSpecular, g_materialSpecular, g_materialSpecular, 1.0f
+	};
+	glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, matSpecular);
+	glMaterialf(GL_FRONT_AND_BACK, GL_SHININESS, g_materialShininess);
+}
+
+// 绘制光源位置的小球标记（在禁用光照状态下绘制）
+void DrawLightMarkers() {
+	if (!g_showLightMarkers) return;
+
+	glDisable(GL_LIGHTING);
+	glDisable(GL_DEPTH_TEST);
+
+	// 主光标记 - 黄色
+	if (g_light0Enabled) {
+		glPushMatrix();
+		glTranslatef(g_light0Pos[0], g_light0Pos[1], g_light0Pos[2]);
+		glColor3f(1.0f, 1.0f, 0.4f);
+		DrawSphere(0.5f, 12);
+		glPopMatrix();
+	}
+	// 补光标记 - 浅蓝
+	if (g_light1Enabled) {
+		glPushMatrix();
+		glTranslatef(g_light1Pos[0], g_light1Pos[1], g_light1Pos[2]);
+		glColor3f(0.4f, 0.6f, 1.0f);
+		DrawSphere(0.4f, 12);
+		glPopMatrix();
+	}
+	// 背光标记 - 浅紫
+	if (g_light2Enabled) {
+		glPushMatrix();
+		glTranslatef(g_light2Pos[0], g_light2Pos[1], g_light2Pos[2]);
+		glColor3f(0.9f, 0.5f, 1.0f);
+		DrawSphere(0.4f, 12);
+		glPopMatrix();
+	}
+
+	glEnable(GL_DEPTH_TEST);
+}
+
+// ============================================
 // Main
 // ============================================
 
@@ -695,6 +844,66 @@ int main()
 		ImGui::Text("Physics objects: %d", (int)g_physicsObjects->size());
 		ImGui::End();
 
+		// 光照控制面板
+		ImGui::Begin("Lighting Controls");
+
+		ImGui::Checkbox("Show Light Markers", &g_showLightMarkers);
+		ImGui::SliderFloat("Global Ambient", &g_globalAmbient, 0.0f, 0.5f);
+		ImGui::Separator();
+
+		// 主光
+		ImGui::Text("Key Light (GL_LIGHT0) - Warm");
+		ImGui::Checkbox("Enable##L0", &g_light0Enabled);
+		if (g_light0Enabled) {
+			ImGui::SliderFloat3("Position##L0", g_light0Pos, -40.0f, 40.0f);
+			ImGui::SliderFloat("Ambient##L0",  &g_light0Ambient,  0.0f, 1.0f);
+			ImGui::SliderFloat("Diffuse##L0",  &g_light0Diffuse,  0.0f, 1.5f);
+			ImGui::SliderFloat("Specular##L0", &g_light0Specular, 0.0f, 1.5f);
+		}
+		ImGui::Separator();
+
+		// 补光
+		ImGui::Text("Fill Light (GL_LIGHT1) - Cool Blue");
+		ImGui::Checkbox("Enable##L1", &g_light1Enabled);
+		if (g_light1Enabled) {
+			ImGui::SliderFloat3("Position##L1", g_light1Pos, -40.0f, 40.0f);
+			ImGui::SliderFloat("Diffuse##L1",  &g_light1Diffuse,  0.0f, 1.0f);
+			ImGui::SliderFloat("Specular##L1", &g_light1Specular, 0.0f, 1.0f);
+		}
+		ImGui::Separator();
+
+		// 背光
+		ImGui::Text("Rim Light (GL_LIGHT2) - Back");
+		ImGui::Checkbox("Enable##L2", &g_light2Enabled);
+		if (g_light2Enabled) {
+			ImGui::SliderFloat3("Position##L2", g_light2Pos, -40.0f, 40.0f);
+			ImGui::SliderFloat("Diffuse##L2",  &g_light2Diffuse,  0.0f, 1.0f);
+			ImGui::SliderFloat("Specular##L2", &g_light2Specular, 0.0f, 1.0f);
+		}
+		ImGui::Separator();
+
+		// 材质
+		ImGui::Text("Material");
+		ImGui::SliderFloat("Specular",   &g_materialSpecular,   0.0f, 1.0f);
+		ImGui::SliderFloat("Shininess",  &g_materialShininess,  1.0f, 128.0f);
+
+		ImGui::Separator();
+		if (ImGui::Button("Reset Lighting")) {
+			g_light0Enabled = true;
+			g_light0Pos[0] = 15.0f;  g_light0Pos[1] = 25.0f; g_light0Pos[2] = 15.0f;
+			g_light0Ambient = 0.15f;  g_light0Diffuse = 0.85f; g_light0Specular = 0.9f;
+			g_light1Enabled = true;
+			g_light1Pos[0] = -15.0f;  g_light1Pos[1] = 15.0f; g_light1Pos[2] = -10.0f;
+			g_light1Diffuse = 0.35f;  g_light1Specular = 0.15f;
+			g_light2Enabled = true;
+			g_light2Pos[0] = 0.0f;    g_light2Pos[1] = 12.0f; g_light2Pos[2] = -25.0f;
+			g_light2Diffuse = 0.25f;  g_light2Specular = 0.2f;
+			g_globalAmbient = 0.18f;
+			g_materialShininess = 64.0f;
+			g_materialSpecular = 0.6f;
+		}
+		ImGui::End();
+
 		if (showDemo) ImGui::ShowDemoWindow(&showDemo);
 
 		// Step Simulation
@@ -727,20 +936,8 @@ int main()
 			g_camera.up.x(), g_camera.up.y(), g_camera.up.z()
 		);
 
-		// Lighting
-		glEnable(GL_LIGHTING);
-		glEnable(GL_LIGHT0);
-		glEnable(GL_COLOR_MATERIAL);
-		glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
-
-		float lightPos[] = { 10.0f, 20.0f, 10.0f, 1.0f };
-		glLightfv(GL_LIGHT0, GL_POSITION, lightPos);
-
-		float lightAmbient[] = { 0.3f, 0.3f, 0.3f, 1.0f };
-		glLightfv(GL_LIGHT0, GL_AMBIENT, lightAmbient);
-
-		float lightDiffuse[] = { 0.8f, 0.8f, 0.8f, 1.0f };
-		glLightfv(GL_LIGHT0, GL_DIFFUSE, lightDiffuse);
+		// Lighting - 配置多光源、全局环境光和材质
+		SetupSceneLights();
 
 		// Draw Ground (with tilt) - use physics transform for accuracy
 		glDisable(GL_LIGHTING);
@@ -779,6 +976,8 @@ int main()
 		glPopMatrix();
 
 		// Draw walls using their actual physics transforms
+		// 墙体已定义法线，启用光照让它们也受场景灯光影响
+		glEnable(GL_LIGHTING);
 		glColor4f(0.25f, 0.35f, 0.25f, 0.9f);
 		for (size_t i = 1; i < g_groundObjects.size(); i++) {
 			btTransform wallPhysTrans;
@@ -864,6 +1063,9 @@ int main()
 		}
 
 		glDisable(GL_POLYGON_OFFSET_FILL);
+
+		// 绘制光源位置标记（在所有 3D 物体之后，禁用深度测试以始终可见）
+		DrawLightMarkers();
 
 		// Draw Selection
 		if (g_selectedObject) {
